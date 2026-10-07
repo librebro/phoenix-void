@@ -1,0 +1,83 @@
+# Template file: srcpkgs/phoenix/template
+
+pkgname=phoenix
+version=2026.09.29.2
+revision=1
+archs="x86_64-musl"
+short_desc="Privacy-focused Firefox configuration suite"
+maintainer="wotaku <wotaku@envs.net>"
+license="GPL-3.0-or-later"
+homepage="https://phoenix.celenity.dev"
+
+distfiles="https://releases.celenity.dev/phoenix/releases/$version/linux/phoenix-$version-linux.tar.xz"
+checksum=50ce9a421bd00e2232bccb814983155f752b5afe589dc291a3f9ea1a0bfc9713
+
+do_install() {
+	local srcdir
+
+	srcdir="$(find "$wrksrc" -type f -name phoenix.cfg -printf '%h\n' | head -n1)"
+
+	if [ -z "$srcdir" ]; then
+		msg_error "Could not locate the extracted Phoenix source directory"
+		return 1
+	fi
+
+	install -Dm644 "$srcdir/assets/about/attribution.css" \
+		"$DESTDIR/etc/firefox/phoenix/assets/about/attribution.css"
+	install -Dm644 "$srcdir/assets/about/attribution.html" \
+		"$DESTDIR/etc/firefox/phoenix/assets/about/attribution.html"
+	install -Dm644 "$srcdir/assets/about/phoenix.css" \
+		"$DESTDIR/etc/firefox/phoenix/assets/about/phoenix.css"
+	install -Dm644 "$srcdir/assets/about/phoenix.html" \
+		"$DESTDIR/etc/firefox/phoenix/assets/about/phoenix.html"
+	install -Dm644 "$srcdir/assets/phoenix.png" \
+		"$DESTDIR/etc/firefox/phoenix/assets/phoenix.png"
+
+	install -Dm644 "$srcdir/defaults/pref/phoenix.js" \
+		"$DESTDIR/etc/firefox/defaults/pref/phoenix.js"
+	install -Dm644 "$srcdir/etc/profile.d/phoenix-env-overrides.sh" \
+		"$DESTDIR/etc/profile.d/phoenix-env-overrides.sh"
+	install -Dm644 "$srcdir/phoenix.cfg" \
+		"$DESTDIR/etc/firefox/phoenix.cfg"
+	install -Dm644 "$srcdir/policies/policies.json" \
+		"$DESTDIR/etc/firefox/policies/policies.json"
+
+	install -Dm644 "$srcdir/specs/phoenix-specialized.cfg" \
+		"$DESTDIR/etc/firefox/phoenix/specs/phoenix-specialized.cfg"
+	install -Dm644 "$srcdir/specs/README.md" \
+		"$DESTDIR/etc/firefox/phoenix/specs/README.md"
+
+	install -Dm644 "$srcdir/specs/permissions/apple-maps-permissions.txt" \
+		"$DESTDIR/etc/firefox/phoenix/specs/permissions/apple-maps-permissions.txt"
+	install -Dm644 "$srcdir/specs/permissions/discord-permissions.txt" \
+		"$DESTDIR/etc/firefox/phoenix/specs/permissions/discord-permissions.txt"
+	install -Dm644 "$srcdir/specs/permissions/element-permissions.txt" \
+		"$DESTDIR/etc/firefox/phoenix/specs/permissions/element-permissions.txt"
+	install -Dm644 "$srcdir/specs/permissions/google-maps-permissions.txt" \
+		"$DESTDIR/etc/firefox/phoenix/specs/permissions/google-maps-permissions.txt"
+	install -Dm644 "$srcdir/specs/permissions/twitter-permissions.txt" \
+		"$DESTDIR/etc/firefox/phoenix/specs/permissions/twitter-permissions.txt"
+
+	install -Dm644 "$srcdir/specs/userjs/apple-maps/user.js" \
+		"$DESTDIR/etc/firefox/phoenix/specs/userjs/apple-maps/user.js"
+	install -Dm644 "$srcdir/specs/userjs/discord/user.js" \
+		"$DESTDIR/etc/firefox/phoenix/specs/userjs/discord/user.js"
+	install -Dm644 "$srcdir/specs/userjs/element/user.js" \
+		"$DESTDIR/etc/firefox/phoenix/specs/userjs/element/user.js"
+	install -Dm644 "$srcdir/specs/userjs/google-maps/user.js" \
+		"$DESTDIR/etc/firefox/phoenix/specs/userjs/google-maps/user.js"
+	install -Dm644 "$srcdir/specs/userjs/photopea/user.js" \
+		"$DESTDIR/etc/firefox/phoenix/specs/userjs/photopea/user.js"
+	install -Dm644 "$srcdir/specs/userjs/twitter/user.js" \
+		"$DESTDIR/etc/firefox/phoenix/specs/userjs/twitter/user.js"
+	install -Dm644 "$srcdir/specs/userjs/youtube/user.js" \
+		"$DESTDIR/etc/firefox/phoenix/specs/userjs/youtube/user.js"
+	install -Dm644 "$srcdir/specs/userjs/youtube-music/user.js" \
+		"$DESTDIR/etc/firefox/phoenix/specs/userjs/youtube-music/user.js"
+
+	install -Dm644 "$srcdir/COPYING.txt" \
+		"$DESTDIR/usr/share/doc/phoenix/COPYING.txt"
+	install -Dm644 "$srcdir/README.md" \
+		"$DESTDIR/usr/share/doc/phoenix/README.md"
+}
+

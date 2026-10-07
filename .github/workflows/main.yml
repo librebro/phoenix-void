@@ -1,0 +1,119 @@
+name: build
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout phoenix
+        uses: actions/checkout@v4
+      - name: create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^version=//p' srcpkgs/phoenix/template)
+          _rev=$(sed -n 's/^_rev=//p' srcpkgs/phoenix/template)
+          : "${version:?}" "${_rev:?}"
+          gh release view "$TAG" >/dev/null 2>&1 && exit 0
+          gh release create "$TAG" \
+            --title "phoenix $TAG" \
+            --notes "https://codeberg.org/celenity/Phoenix/releases/tag/$TAG" \
+            --latest=false
+  build:
+    needs: release
+    strategy:
+      max-parallel: 4
+      matrix:
+        include:
+          - { host: x86_64, target: x86_64 }
+          - { host: x86_64-musl, target: x86_64-musl }
+          - { host: x86_64, target: aarch64 }
+          - { host: x86_64-musl, target: aarch64-musl }
+    runs-on: ubuntu-22.04
+    steps:
+      - name: free space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /opt/hostedtoolcache/
+          sudo rm -rf /usr/local/graalvm/
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /usr/local/lib/node_modules
+          sudo docker image prune --all --force
+      - name: checkout phoenix
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          path: phoenix
+      - name: checkout void-packages
+        uses: actions/checkout@v4
+        with:
+          repository: void-linux/void-packages
+          ref: master
+          path: void-packages
+      - name: copy phoenix into srcpkgs
+        run: cp -rv phoenix/srcpkgs/phoenix void-packages/srcpkgs
+      - name: prepare xbps-static
+        run: |
+          mkdir -p /opt/xbps
+          curl -LO https://repo-default.voidlinux.org/static/xbps-static-latest.x86_64-musl.tar.xz
+          tar xvf xbps-static-latest.x86_64-musl.tar.xz -C /opt/xbps
+          rm xbps-static-latest.x86_64-musl.tar.xz
+      - name: build
+        env:
+          XBPS_TARGET_ARCH: ${{ matrix.target }}
+        run: |
+          export PATH="/opt/xbps/usr/bin/:$PATH"
+          cd void-packages
+          if [[ "${{ matrix.host }}" == "${{ matrix.target }}" ]]; then
+            ./xbps-src -A ${{ matrix.host }} binary-bootstrap
+            ./xbps-src pkg -j4 -A ${{ matrix.host }} phoenix
+          else
+            ./xbps-src -a ${{ matrix.target }} -A ${{ matrix.host }} binary-bootstrap
+            ./xbps-src pkg -j4 -a ${{ matrix.target }} -A ${{ matrix.host }} phoenix
+          fi
+      - name: sign
+        env:
+          XBPS_PASSPHRASE: ${{ secrets.SIGN_PASS }}
+          XBPS_TARGET_ARCH: ${{ matrix.target }}
+        working-directory: void-packages/hostdir/binpkgs/
+        run: |
+          export PATH="/opt/xbps/usr/bin/:$PATH"
+          xbps-rindex -r $PWD
+          xbps-rindex -s --signedby "${{ vars.SIGNEDBY }}" --privkey <(printf '%s' "${{ secrets.PRIV_KEY }}") $PWD
+          xbps-rindex -S --privkey <(printf '%s' "${{ secrets.PRIV_KEY }}") *.xbps
+          xbps-rindex -c $PWD
+      - name: checksum
+        working-directory: void-packages/hostdir/binpkgs/
+        run: |
+          sha256sum $(echo *.xbps)
+          sha512sum $(echo *.xbps)
+      - name: upload assets
+        working-directory: void-packages/hostdir/binpkgs/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "${{ github.ref_name }}" *.xbps *.xbps.sig2 *-repodata --clobber
+  latest:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: mark release as latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "${{ github.ref_name }}" --latest
