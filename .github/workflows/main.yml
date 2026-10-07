@@ -20,8 +20,8 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           version=$(sed -n 's/^version=//p' srcpkgs/phoenix/template)
-          _rev=$(sed -n 's/^_rev=//p' srcpkgs/phoenix/template)
-          : "${version:?}" "${_rev:?}"
+          revision=$(sed -n 's/^revision=//p' srcpkgs/phoenix/template)
+          : "${version:?}" "${revision:?}"
           gh release view "$TAG" >/dev/null 2>&1 && exit 0
           gh release create "$TAG" \
             --title "phoenix $TAG" \
